@@ -1,4 +1,5 @@
-# COSEnu_summer_program
-Just for 2024 summer program in the IoP!
+# COSEnu
 
-First week:
+A simulation engine for collective neutrino flavor conversions.
+
+See https://cosenu.github.io/cosenu_docs/ for Documentation.
