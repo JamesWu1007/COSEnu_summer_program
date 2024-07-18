@@ -11,4 +11,4 @@ A simulation engine for collective neutrino flavor conversions.
 
 See https://cosenu.github.io/cosenu_docs/ for Documentation.
 
-Main tool I use in my project. Thanks for Dr.Meng-ru'group.
+Main tool I use in my project. Thanks for Dr.Meng-ru's group.
