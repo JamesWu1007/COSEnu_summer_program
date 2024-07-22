@@ -148,7 +148,7 @@ void NuOsc::surv_prob(const FieldVar *ivstate, const FieldVar *ivstate0, uint t)
             std::cout << "Unable to open " << surv_prob_fname << std::endl;
             return;
         }
-        surv_prob_ofstream << "# [time, <Pee>, <Pbee>]" << std::endl;
+        surv_prob_ofstream << "# [time, <Pee>, <Pbee>, Re[<Pex>], Im[<Pex>]]" << std::endl;
     }
     else
     {
@@ -165,6 +165,9 @@ void NuOsc::surv_prob(const FieldVar *ivstate, const FieldVar *ivstate0, uint t)
     double num_Pbee = 0;
     double dnom_Pee = 0;
     double dnom_Pbee = 0;
+    //add
+    double num_Pex_re = 0;
+    double num_Pex_im = 0;
 
     for (int i = 0; i < nvz; i++)
     {
@@ -174,12 +177,19 @@ void NuOsc::surv_prob(const FieldVar *ivstate, const FieldVar *ivstate0, uint t)
             num_Pbee += ivstate->bee[idx(i, j)] * dz * dv;
             dnom_Pee += ivstate0->ee[idx(i, j)] * dz * dv;
             dnom_Pbee += ivstate0->bee[idx(i, j)] * dz * dv;
+            //add
+            num_Pex_re += ivstate->ex_re[idx(i, j)] * dz * dv;
+            num_Pex_im += ivstate->ex_im[idx(i, j)] * dz * dv;
         }
     }
     surv_prob_ofstream << t << "\t"
                        << std::scientific
                        << num_Pee / dnom_Pee << "\t"
-                       << num_Pbee / dnom_Pbee << std::endl;
+                       << num_Pbee / dnom_Pbee << "\t"
+                       //add
+                       << num_Pex_re / dnom_Pee << "\t"
+                       << num_Pex_im / dnom_Pee << std::endl;
+
 
     surv_prob_ofstream.close();
 }
@@ -189,3 +199,4 @@ void NuOsc::surv_prob(const FieldVar *ivstate, const FieldVar *ivstate0, uint t)
 #endif // __ANALYSIS__
 
 /*------------------------------- EOF ------------------------------------*/
+
