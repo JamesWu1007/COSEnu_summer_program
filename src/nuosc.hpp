@@ -57,7 +57,7 @@ public:
         CFL = pars.CFL;
         gz = pars.gz; // Width of z-buffer zone. 4 for 2nd-order of d/dz.
 
-        ko = 1.0e-1;
+        ko = 1.0e-1; // artificial KO dissipation for FD scheme 
 
         perturbation_size = pars.perturbation_size;
 
@@ -79,16 +79,28 @@ public:
         dv = (vz1 - vz0) / (nvz); // cell-center
         dt = CFL * dz; // / vz1;
 
+
         for (int i = 0; i < nz; i++)
         {
             Z[i] = z0 + (i + 0.5) * dz;
         }
 
+
+        //For specific velocity: vz = -1 & vz = 1
+        vz[0] = -1.0;
+        vz[1] = 1.0;
+        //maybe useless vw, just set to 1
+        vw[0] = 1.0;
+        vw[1] = 1.0;
+
+        /*
         for (int i = 0; i < nvz; i++)
         {
             vz[i] = vz0 + (i + 0.5) * dv;
             vw[i] = 1.0;
         }
+        */
+
 
         for (int i = 0; i < nz; i++)
         {
@@ -209,6 +221,7 @@ void NuOsc::copy_state(const FieldVar *ivstate, FieldVar *cpvstate)
     }
 }
 
+//注意，只有當我們在configs.yaml裏面設置時，這裡的B.C.才會被define!!!
 void NuOsc::updateBufferZone(FieldVar *in)
 {
 
@@ -244,6 +257,7 @@ void NuOsc::updateBufferZone(FieldVar *in)
     }
 #endif
 
+
 #ifdef OPEN_BC
 #pragma omp parallel for
 #pragma acc parallel loop collapse(2) indedependent // default(present)
@@ -275,7 +289,42 @@ void NuOsc::updateBufferZone(FieldVar *in)
         }
     }
 #endif
+
+//dichlet B.C.
+#ifdef FFS_BC
+#pragma omp parallel for
+#pragma acc parallel loop collapse(2) independent //  default(present)
+//current version
+for (int i = 0; i < nvz; i++)
+{
+  for (int j = 0; j < gz; j++)
+  {
+    // Lower boundary (z = 0): Inject neutrino beam
+    if (vz[i] > 0) {  // Only inject neutrinos moving in positive z direction
+      in->ee[idx(i, -j - 1)] = 1.0;  // Neutrino beam
+      in->xx[idx(i, -j - 1)] = 0.0;  // No anti-neutrinos
+    } else {
+      in->ee[idx(i, -j - 1)] = 0.0;
+      in->xx[idx(i, -j - 1)] = 0.0;
+    }
+    
+    // Upper boundary (z = Lz): Inject anti-neutrino beam
+    if (vz[i] < 0) {  // Only inject anti-neutrinos moving in negative z direction
+      in->ee[idx(i, nz + j)] = 0.0;  // No neutrinos
+      in->xx[idx(i, nz + j)] = -alpha;  // Anti-neutrino beam
+    } else {
+      in->ee[idx(i, nz + j)] = 0.0;
+      in->xx[idx(i, nz + j)] = 0.0;
+    }
+    
+    // Other fields can be set to zero or handled similarly
+    // ...
+  }
 }
+#endif
+}
+
+
 
 /* v0 = v1 + a * v2 */
 void NuOsc::vectorize(FieldVar *v0, const FieldVar *v1, const real a, const FieldVar *v2)
@@ -352,3 +401,4 @@ void NuOsc::step_rk4()
 #endif // __NUOSC__
 
 /*---------------------------------------------------------------------------*/
+
