@@ -1,22 +1,34 @@
 # CONFIGURATIONS FOR THE SIMULATION.
 # Interpreted as a yaml file. Please use yaml syntax.
+
+#---------------------------- Notes -----------------------------------#
+
+# dz = zrange/nzs
+# dt = CFLS * dz
+# iteration number = end_time/dt
+# rho_t.dat file: each t will be the multiple of iteration number/n_dump_rho
+# n_analyze: for conserved quantities, like survival probability
+
 #----------------------------------------------------------------#
 
+
 # Spatial domain specifics.
-zrange: [-600, 600]
-nzs: [1200]
+zrange: [0, 1000]
+nzs: [10000]
 CFLS: [0.4]
+
 
 #----------------------------------------------------------------#
 
 # Phase-space specifics.
 v0: -1.0
 v1: 1.0
-nvzs: [32]
+nvzs: [2] #we can get [-0.99 ~ 0.99], dz = 0.02
+
 
 #----------------------------------------------------------------#
 
-boundary: periodic # Options ->  periodic, open
+boundary: ffs # Options ->  periodic, open, ffs
 
 #----------------------------------------------------------------#
 
@@ -24,7 +36,7 @@ end_time: 1200 # Physical end time
 
 #----------------------------------------------------------------#
 
-perturbation_size: 1e-2
+perturbation_size: 1e-6
 
 #----------------------------------------------------------------#
 
@@ -34,20 +46,23 @@ advection_off: False # Options -> True, False
 # Switch on/off vacuum oscillation
 vac_osc_on: False # options -> True, False
 pmo: 1.0 # 1.0 -> normal mass ordering, -1.0 -> inverted mass ordering, 0.0 -> no vacuum term.
-omega: 1.0 # \Dedlta m^2/2E.
+omega: 0.1 # \Dedlta m^2/2E.
 theta: 37 # Vacuum mixing angle in degrees.
 
+# Switch on/off nu-matter oscillation
 mat_osc_on: False
 
 # Switch on/off collective oscillations
-collective_osc_on: True # Options -> True, False
+collective_osc_on: on # Options -> True, False
 mu: 1.0 # \sqrt{2} G_F n_{\nu_e}
+
+
 #----------------------------------------------------------------#
 # ANALYSIS
 #----------------------------------------------------------------#
 
 # To analyze the behaviour of the conserved quantities.
-n_analyze: 100 # Total number of analysis to be carried out per job.
+n_analyze: 200 # Total number of analysis to be carried out per job.
 
 # To capture the the field variables for all the velocities over entire domain.
 n_dump_rho: 100 # number of times density matrix elements has to be dumped.
@@ -55,8 +70,8 @@ n_dump_rho: 100 # number of times density matrix elements has to be dumped.
 #----------------------------------------------------------------#
 
 # Folder names
-folder_fv: "lin_a_m1em3"
-folder_fd: "output_from_fd"
+folder_fv: "output_from_fv_ffs_try_collective"
+folder_fd: "output_from_fd_adv"
 
 #----------------------------------------------------------------#
 
@@ -74,3 +89,5 @@ slurm_requests: #slurm job description
   cpus-per-task: 20
 
 modules: ["nvhpc/24.3"]
+
+
