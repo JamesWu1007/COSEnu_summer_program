@@ -57,7 +57,7 @@ public:
         CFL = pars.CFL;
         gz = pars.gz; // Width of z-buffer zone. 4 for 2nd-order of d/dz.
 
-        ko = 1.0e-1;
+        ko = 1.0e-1; // artificial KO dissipation for FD scheme 
 
         perturbation_size = pars.perturbation_size;
 
@@ -79,16 +79,28 @@ public:
         dv = (vz1 - vz0) / (nvz); // cell-center
         dt = CFL * dz; // / vz1;
 
+
         for (int i = 0; i < nz; i++)
         {
             Z[i] = z0 + (i + 0.5) * dz;
         }
 
+
+        //For specific velocity: vz = -1 & vz = 1
+        vz[0] = -1.0;
+        vz[1] = 1.0;
+        //maybe useless vw, just set to 1
+        vw[0] = 1.0;
+        vw[1] = 1.0;
+
+        /*
         for (int i = 0; i < nvz; i++)
         {
             vz[i] = vz0 + (i + 0.5) * dv;
             vw[i] = 1.0;
         }
+        */
+
 
         for (int i = 0; i < nz; i++)
         {
@@ -209,6 +221,7 @@ void NuOsc::copy_state(const FieldVar *ivstate, FieldVar *cpvstate)
     }
 }
 
+//注意，只有當我們在configs.yaml裏面設置時，這裡的B.C.才會被define!!!
 void NuOsc::updateBufferZone(FieldVar *in)
 {
 
@@ -244,6 +257,7 @@ void NuOsc::updateBufferZone(FieldVar *in)
     }
 #endif
 
+
 #ifdef OPEN_BC
 #pragma omp parallel for
 #pragma acc parallel loop collapse(2) indedependent // default(present)
@@ -275,7 +289,77 @@ void NuOsc::updateBufferZone(FieldVar *in)
         }
     }
 #endif
+
+//B.C. for fast flavor swap
+#ifdef FFS_BC
+#pragma omp parallel for
+#pragma acc parallel loop collapse(2) independent
+    for (int i = 0; i < nvz; i++)
+    {
+        for (int j = 0; j < gz; j++)
+        {
+            if (vz[i] > 0) // for right-going beams
+            {
+                // left boundary (Dirichlet)
+                // neutrino
+                in->ee[idx(i, -j - 1)] = 1.0; // for pure electron neutrino
+                in->xx[idx(i, -j - 1)] = 0.0;
+                in->ex_re[idx(i, -j - 1)] = 0.0;
+                in->ex_im[idx(i, -j - 1)] = 0.0;
+                // anti-neutrino
+                in->bee[idx(i, -j - 1)] = 0.0; // 先假設一些fix value!!!會回來改（假設初始態為純電子中微子））
+                in->bxx[idx(i, -j - 1)] = 0.0;
+                in->bex_re[idx(i, -j - 1)] = 0.0;
+                in->bex_im[idx(i, -j - 1)] = 0.0;
+                
+
+                // right boundary (open, 3rd order extrapolation)
+                // neutrino
+                in->ee[idx(i, nz + j)] = 3 * in->ee[idx(i, nz + j - 1)] - 3 * in->ee[idx(i, nz + j - 2)] + in->ee[idx(i, nz + j - 3)];
+                in->xx[idx(i, nz + j)] = 3 * in->xx[idx(i, nz + j - 1)] - 3 * in->xx[idx(i, nz + j - 2)] + in->xx[idx(i, nz + j - 3)];
+                in->ex_re[idx(i, nz + j)] = 3 * in->ex_re[idx(i, nz + j - 1)] - 3 * in->ex_re[idx(i, nz + j - 2)] + in->ex_re[idx(i, nz + j - 3)];
+                in->ex_im[idx(i, nz + j)] = 3 * in->ex_im[idx(i, nz + j - 1)] - 3 * in->ex_im[idx(i, nz + j - 2)] + in->ex_im[idx(i, nz + j - 3)];
+                // anti-neutrino
+                in->bee[idx(i, nz + j)] = 3 * in->bee[idx(i, nz + j - 1)] - 3 * in->bee[idx(i, nz + j - 2)] + in->bee[idx(i, nz + j - 3)];
+                in->bxx[idx(i, nz + j)] = 3 * in->bxx[idx(i, nz + j - 1)] - 3 * in->bxx[idx(i, nz + j - 2)] + in->bxx[idx(i, nz + j - 3)];
+                in->bex_re[idx(i, nz + j)] = 3 * in->bex_re[idx(i, nz + j - 1)] - 3 * in->bex_re[idx(i, nz + j - 2)] + in->bex_re[idx(i, nz + j - 3)];
+                in->bex_im[idx(i, nz + j)] = 3 * in->bex_im[idx(i, nz + j - 1)] - 3 * in->bex_im[idx(i, nz + j - 2)] + in->bex_im[idx(i, nz + j - 3)];
+
+
+            }
+            else // for left-going beams
+            {
+                // left boundary (open, 3rd order extrapolation)
+                // neutrino
+                in->ee[idx(i, -j - 1)] = 3 * in->ee[idx(i, -j)] - 3 * in->ee[idx(i, -j + 1)] + in->ee[idx(i, -j + 2)];
+                in->xx[idx(i, -j - 1)] = 3 * in->xx[idx(i, -j)] - 3 * in->xx[idx(i, -j + 1)] + in->xx[idx(i, -j + 2)];
+                in->ex_re[idx(i, -j - 1)] = 3 * in->ex_re[idx(i, -j)] - 3 * in->ex_re[idx(i, -j + 1)] + in->ex_re[idx(i, -j + 2)];
+                in->ex_im[idx(i, -j - 1)] = 3 * in->ex_im[idx(i, -j)] - 3 * in->ex_im[idx(i, -j + 1)] + in->ex_im[idx(i, -j + 2)];
+                // anti-neutrino
+                in->bee[idx(i, -j - 1)] = 3 * in->bee[idx(i, -j)] - 3 * in->bee[idx(i, -j + 1)] + in->bee[idx(i, -j + 2)];
+                in->bxx[idx(i, -j - 1)] = 3 * in->bxx[idx(i, -j)] - 3 * in->bxx[idx(i, -j + 1)] + in->bxx[idx(i, -j + 2)];
+                in->bex_re[idx(i, -j - 1)] = 3 * in->bex_re[idx(i, -j)] - 3 * in->bex_re[idx(i, -j + 1)] + in->bex_re[idx(i, -j + 2)];
+                in->bex_im[idx(i, -j - 1)] = 3 * in->bex_im[idx(i, -j)] - 3 * in->bex_im[idx(i, -j + 1)] + in->bex_im[idx(i, -j + 2)];
+
+                
+                // right boundary (Dirichlet)
+                in->ee[idx(i, nz + j)] = 0.0; 
+                in->xx[idx(i, nz + j)] = 0.0;
+                in->ex_re[idx(i, nz + j)] = 0.0;
+                in->ex_im[idx(i, nz + j)] = 0.0;
+                // anti-neutrino
+                in->bee[idx(i, nz + j)] = 1.0; // for pure electron anti-neutrino
+                in->bxx[idx(i, nz + j)] = 0.0;
+                in->bex_re[idx(i, nz + j)] = 0.0;
+                in->bex_im[idx(i, nz + j)] = 0.0;
+            }
+
+        }
+    }
+#endif
 }
+
+
 
 /* v0 = v1 + a * v2 */
 void NuOsc::vectorize(FieldVar *v0, const FieldVar *v1, const real a, const FieldVar *v2)
