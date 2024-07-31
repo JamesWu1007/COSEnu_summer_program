@@ -17,9 +17,13 @@ void NuOsc::initialize()
     Initialize the components of \rho and \bar{\rho}
     here.
 */
+
+    /*
+    // for COSEnu collective part
     double signu  = 0.6;
     double sigbnu = 0.5;
     double alpha  = 0.9;
+    */
 
     std::ofstream g_file("G0.bin",std::ofstream::out | std::ofstream::binary);
     if(!g_file)
@@ -36,7 +40,7 @@ void NuOsc::initialize()
             /*
             //for COSEnu advection & vaccum part
 
-            // 設置spatial distribution
+            // set spatial distribution
             double gaussian = gauss(Z[j], 0, 50);
 
             v_stat->ee[idx(i, j)]    = gaussian;
@@ -74,9 +78,9 @@ void NuOsc::initialize()
             if (j == 0 && vz[i] > 0)
             {
                 //neutrino
-                v_stat->ee[idx(i, j)] = 1.0;
-                v_stat->xx[idx(i, j)] = perturbation_size;
-                v_stat->ex_re[idx(i, j)] = perturbation_size;
+                v_stat->ee[idx(i, j)] = 0.5 * (1.0 + sqrt(1 - perturbation_size * perturbation_size));
+                v_stat->xx[idx(i, j)] = 0.5 * (1.0 - sqrt(1 - perturbation_size * perturbation_size));
+                v_stat->ex_re[idx(i, j)] = 0.5 * perturbation_size;
                 v_stat->ex_im[idx(i, j)] = 0.0;
                 //anti-neutrino
                 v_stat->bee[idx(i, j)] = 0.0;
@@ -93,9 +97,9 @@ void NuOsc::initialize()
                 v_stat->ex_re[idx(i, j)] = 0.0;
                 v_stat->ex_im[idx(i, j)] = 0.0;
                 //anti-neutrino
-                v_stat->bee[idx(i, j)] = 1.0;
-                v_stat->bxx[idx(i, j)] = perturbation_size;
-                v_stat->bex_re[idx(i, j)] = perturbation_size;
+                v_stat->bee[idx(i, j)] = 0.5 * (1.0 + sqrt(1 - perturbation_size * perturbation_size));
+                v_stat->bxx[idx(i, j)] = 0.5 * (1.0 - sqrt(1 - perturbation_size * perturbation_size));
+                v_stat->bex_re[idx(i, j)] = 0.5 * perturbation_size;
                 v_stat->bex_im[idx(i, j)] = 0.0;
             }
             
@@ -114,3 +118,4 @@ void NuOsc::initialize()
 #endif // __INITIALIZE__
 
 /*---------------------------------------------------------------------------*/
+
