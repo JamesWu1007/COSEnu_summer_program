@@ -22,7 +22,7 @@ public:
     int size;
     real ko;
 
-    real dz, dv;
+    real dz, dv, dv_new;
     real vz0, vz1;
     real z0, z1;
     real CFL;
@@ -77,6 +77,7 @@ public:
 
         dz = (z1 - z0) / nz;
         dv = (vz1 - vz0) / (nvz); // cell-center
+        dv_new = (vz1 - vz0) / (nvz-1);
         dt = CFL * dz; // / vz1;
 
 
@@ -85,21 +86,53 @@ public:
             Z[i] = z0 + (i + 0.5) * dz;
         }
 
-
-        //For specific velocity: vz = -1 & vz = 1
-        vz[0] = -1.0;
-        vz[1] = 1.0;
-        //maybe useless vw, just set to 1
-        vw[0] = 1.0;
-        vw[1] = 1.0;
+/*---------------------------------------------------------------------------*/
+//              a lot of choice for flight direction (vz)
 
         /*
+        //COSEnu
         for (int i = 0; i < nvz; i++)
         {
             vz[i] = vz0 + (i + 0.5) * dv;
             vw[i] = 1.0;
         }
         */
+
+        /*
+        //For specific velocity: vz = -1 & vz = 1
+        vz[0] = -1.0;
+        vz[1] = 1.0;
+        // set to vw = 1.0 means "equal weighting" for each velocity
+        vw[0] = 1.0;
+        vw[1] = 1.0;
+        */
+
+        //For FFS multiple beams, like COSEnu but contain -1 & 1
+        vz[0] = -1.0;
+        vz[nvz-1] = 1.0;
+        vw[0] = 1.0;
+        vw[nvz-1] = 1.0;
+
+
+        for (int i = 1; i < nvz-1; i++)
+        {
+            vz[i] = vz0 + i * dv_new;
+            vw[i] = 1.0;
+        }
+
+
+        /*
+        //For FFS multiple beams, Gauss-Legendre quadrature
+        for (int i = 0; i < nvz; i++)
+        {
+            vz[i] = vz0 + (i + 0.5) * dv;
+            vw[i] = 1.0;
+        }
+        */
+
+
+
+/*---------------------------------------------------------------------------*/
 
 
         for (int i = 0; i < nz; i++)
@@ -307,7 +340,7 @@ void NuOsc::updateBufferZone(FieldVar *in)
                 in->ex_re[idx(i, -j - 1)] = 0.0;
                 in->ex_im[idx(i, -j - 1)] = 0.0;
                 // anti-neutrino
-                in->bee[idx(i, -j - 1)] = 0.0; // 先假設一些fix value!!!會回來改（假設初始態為純電子中微子））
+                in->bee[idx(i, -j - 1)] = 0.0; 
                 in->bxx[idx(i, -j - 1)] = 0.0;
                 in->bex_re[idx(i, -j - 1)] = 0.0;
                 in->bex_im[idx(i, -j - 1)] = 0.0;
@@ -348,7 +381,7 @@ void NuOsc::updateBufferZone(FieldVar *in)
                 in->ex_re[idx(i, nz + j)] = 0.0;
                 in->ex_im[idx(i, nz + j)] = 0.0;
                 // anti-neutrino
-                in->bee[idx(i, nz + j)] = 1.0; // for pure electron anti-neutrino
+                in->bee[idx(i, nz + j)] = 1.0; // now set \alpha = n_bee/n_ee = 1.0 
                 in->bxx[idx(i, nz + j)] = 0.0;
                 in->bex_re[idx(i, nz + j)] = 0.0;
                 in->bex_im[idx(i, nz + j)] = 0.0;
@@ -436,3 +469,4 @@ void NuOsc::step_rk4()
 #endif // __NUOSC__
 
 /*---------------------------------------------------------------------------*/
+
