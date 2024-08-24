@@ -86,6 +86,8 @@ public:
             Z[i] = z0 + (i + 0.5) * dz;
         }
 
+
+
 /*---------------------------------------------------------------------------*/
 //              a lot of choice for flight direction (vz)
 
@@ -98,34 +100,43 @@ public:
         }
         */
 
-        /*
+        
         //For specific velocity: vz = -1 & vz = 1
         vz[0] = -1.0;
         vz[1] = 1.0;
         // set to vw = 1.0 means "equal weighting" for each velocity
         vw[0] = 1.0;
         vw[1] = 1.0;
-        */
-
+        
+        
+       
+       
+        
+    
+        /*
         //For FFS multiple beams, like COSEnu but contain -1 & 1
         vz[0] = -1.0;
         vz[nvz-1] = 1.0;
         vw[0] = 1.0;
         vw[nvz-1] = 1.0;
 
-
         for (int i = 1; i < nvz-1; i++)
         {
             vz[i] = vz0 + i * dv_new;
             vw[i] = 1.0;
         }
-
-
+        */
+        
         /*
-        //For FFS multiple beams, Gauss-Legendre quadrature
-        for (int i = 0; i < nvz; i++)
+        //For FFS multiple beams, vz: 0~1
+        vz[0] = 0.0;
+        vz[nvz-1] = 1.0;
+        vw[0] = 1.0;
+        vw[nvz-1] = 1.0;
+
+        for (int i = 1; i < nvz-1; i++)
         {
-            vz[i] = vz0 + (i + 0.5) * dv;
+            vz[i] = vz0 + i * dv_new;
             vw[i] = 1.0;
         }
         */
@@ -381,7 +392,7 @@ void NuOsc::updateBufferZone(FieldVar *in)
                 in->ex_re[idx(i, nz + j)] = 0.0;
                 in->ex_im[idx(i, nz + j)] = 0.0;
                 // anti-neutrino
-                in->bee[idx(i, nz + j)] = 1.0; // now set \alpha = n_bee/n_ee = 1.0 
+                in->bee[idx(i, nz + j)] = 2.0; // now set \alpha = n_bee/n_ee = 1.0 
                 in->bxx[idx(i, nz + j)] = 0.0;
                 in->bex_re[idx(i, nz + j)] = 0.0;
                 in->bex_im[idx(i, nz + j)] = 0.0;
@@ -390,6 +401,82 @@ void NuOsc::updateBufferZone(FieldVar *in)
         }
     }
 #endif
+
+
+//B.C. for time-depent Dirichlet
+#ifdef TimeDep_BC
+#pragma omp parallel for
+#pragma acc parallel loop collapse(2) independent
+    for (int i = 0; i < nvz; i++)
+    {
+        for (int j = 0; j < gz; j++)
+        {
+            if (vz[i] > 0) // only consider right-going beams
+            {
+                // left boundary (Dirichlet, with t-dependent \alpha!)
+                //Purpose: see whether FFS happens when the ELN at the boundary transits from nue dominated to nuebar dominated
+
+                //setup for alpha 
+                
+                
+                double t_transition = 0.0; // 開始增加的時間點
+                double transition_width = 200.0; // 過渡寬度
+                double initial_bee = 0.5;
+                double final_bee = 1.2;
+                double bee_diff = final_bee - initial_bee;
+                double sigmoid = 1.0 / (1.0 + exp(-(phy_time - t_transition) / transition_width));
+                double alpha_t = initial_bee + bee_diff * sigmoid;
+                
+
+                // Setup for alpha 
+                /*
+                double alpha_t;
+                    if (phy_time < 200.0) {
+                        alpha_t = 0.7;
+                    } else {
+                        alpha_t = 1.2;
+                    }
+                */
+
+                //setup for angular distribution at B.C.
+                G0->G[idx(i, -j - 1)] = g(vz[i], 1.0, 0.6);
+                G0->bG[idx(i, -j - 1)] = g(vz[i], 1.0, 0.5);
+
+
+                // neutrino
+                in->ee[idx(i, -j - 1)] = 1.0 * G0->G[idx(i, -j - 1)]; 
+                in->xx[idx(i, -j - 1)] = 0.0;
+                in->ex_re[idx(i, -j - 1)] = 0.0;
+                in->ex_im[idx(i, -j - 1)] = 0.0;
+
+                // anti-neutrino                
+                in->bee[idx(i, -j - 1)] = 1.0 * alpha_t * G0->bG[idx(i, -j - 1)] ;
+                in->bxx[idx(i, -j - 1)] = 0.0;
+                in->bex_re[idx(i, -j - 1)] = 0.0;
+                in->bex_im[idx(i, -j - 1)] = 0.0;
+                
+
+                // right boundary (open, 3rd order extrapolation)
+                // neutrino
+                in->ee[idx(i, nz + j)] = 3 * in->ee[idx(i, nz + j - 1)] - 3 * in->ee[idx(i, nz + j - 2)] + in->ee[idx(i, nz + j - 3)];
+                in->xx[idx(i, nz + j)] = 3 * in->xx[idx(i, nz + j - 1)] - 3 * in->xx[idx(i, nz + j - 2)] + in->xx[idx(i, nz + j - 3)];
+                in->ex_re[idx(i, nz + j)] = 3 * in->ex_re[idx(i, nz + j - 1)] - 3 * in->ex_re[idx(i, nz + j - 2)] + in->ex_re[idx(i, nz + j - 3)];
+                in->ex_im[idx(i, nz + j)] = 3 * in->ex_im[idx(i, nz + j - 1)] - 3 * in->ex_im[idx(i, nz + j - 2)] + in->ex_im[idx(i, nz + j - 3)];
+                // anti-neutrino
+                in->bee[idx(i, nz + j)] = 3 * in->bee[idx(i, nz + j - 1)] - 3 * in->bee[idx(i, nz + j - 2)] + in->bee[idx(i, nz + j - 3)];
+                in->bxx[idx(i, nz + j)] = 3 * in->bxx[idx(i, nz + j - 1)] - 3 * in->bxx[idx(i, nz + j - 2)] + in->bxx[idx(i, nz + j - 3)];
+                in->bex_re[idx(i, nz + j)] = 3 * in->bex_re[idx(i, nz + j - 1)] - 3 * in->bex_re[idx(i, nz + j - 2)] + in->bex_re[idx(i, nz + j - 3)];
+                in->bex_im[idx(i, nz + j)] = 3 * in->bex_im[idx(i, nz + j - 1)] - 3 * in->bex_im[idx(i, nz + j - 2)] + in->bex_im[idx(i, nz + j - 3)];
+
+
+            }
+            
+        }
+    }
+#endif
+
+
+
 }
 
 
@@ -469,4 +556,3 @@ void NuOsc::step_rk4()
 #endif // __NUOSC__
 
 /*---------------------------------------------------------------------------*/
-
