@@ -1,4 +1,4 @@
-# Summer student project in IoP
+# Summer Student Program 2024 in IoP
 
 Project theme:
 
